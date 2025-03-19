@@ -1,32 +1,81 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Layout from "../components/layout/layout";
+import { fetchNotebook } from "../utils/utils"
 
-import Graph1 from "../assets/graphs/graph1.png";
-import Graph2 from "../assets/graphs/graph2.png";
-import Graph3 from "../assets/graphs/graph3.png";
-import Graph4 from "../assets/graphs/graph4.png";
-import Graph5 from "../assets/graphs/graph5.png";
-import Graph6 from "../assets/graphs/graph6.png";
-import Graph7 from "../assets/graphs/graph7.png";
-import Graph8 from "../assets/graphs/graph8.png";
+interface NotebookCellOutput {
+  data?: {
+      ["image/png"]?: string; 
+  };
+}
 
-const graphs = [Graph1, Graph2, Graph3, Graph4, Graph5, Graph6, Graph7, Graph8];
+interface NotebookCell {
+  cell_type: string;
+  outputs?: NotebookCellOutput[];
+}
+
+interface NotebookJson {
+  cells: NotebookCell[];
+}
+
 
 const Dashboard: React.FC = () => {
+    const [graphs, setGraphs] = useState<string[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+
+    useEffect(() => {
+        async function loadImages() {
+            try {
+              const notebook: NotebookJson = await fetchNotebook();
+              const imgList: string[] = [];
+          
+              notebook.cells.forEach((cell: NotebookCell) => {
+                  if (cell.cell_type === "code" && cell.outputs) {
+                      cell.outputs.forEach((output: NotebookCellOutput) => {
+                          if (output.data && output.data["image/png"]) {
+                              const imageData = `data:image/png;base64,${output.data["image/png"]}`;
+                              imgList.push(imageData);
+                          }
+                      });
+                  }
+              });
+          
+              setGraphs(imgList);
+          } catch (error) {
+              console.error("Error fetching notebook images:", error);
+          }
+         finally {
+                setLoading(false);
+            }
+        }
+
+        loadImages();
+    }, []);
+
     return (
-      <Layout>
-        <div className="p-8">
-          <h1 className="text-2xl font-bold text-[#5C5C5D] mb-6">Tender Discovery Platform</h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            {graphs.map((graph, index) => (
-              <div key={index} className="bg-white p-6 shadow-lg rounded-lg flex justify-center">
-                <img src={graph} alt={`Graph ${index + 1}`} className="w-full max-h-[500px] object-contain rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </Layout>
+        <Layout>
+            <div className="p-8">
+                <h1 className="text-2xl font-bold text-[#5C5C5D] mb-6">Tender Discovery Platform</h1>
+
+                {loading ? (
+                    <p className="text-center text-gray-500">Loading graphs...</p>
+                ) : graphs.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        {graphs.map((graph, index) => (
+                            <div key={index} className="bg-white p-6 shadow-lg rounded-lg flex justify-center">
+                                <img
+                                    src={graph}
+                                    alt={`Graph ${index + 1}`}
+                                    className="w-full max-h-[500px] object-contain rounded-lg"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center text-gray-500">No graphs found in the notebook.</p>
+                )}
+            </div>
+        </Layout>
     );
-  };
+};
 
 export default Dashboard;
